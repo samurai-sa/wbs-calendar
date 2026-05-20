@@ -24,9 +24,16 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
+  height: 100%;
   margin: 0;
   min-width: 320px;
+  overflow: hidden;
   background: var(--bg);
   color: var(--ink);
 }
@@ -40,10 +47,12 @@ textarea {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(150px, 190px) minmax(0, 1fr);
   gap: 12px;
+  height: 100dvh;
   width: min(1120px, calc(100% - 24px));
   margin: 0 auto;
+  overflow: hidden;
   padding: 12px 0;
 }
 
@@ -66,6 +75,8 @@ textarea {
   flex-direction: column;
   grid-row: 1 / 4;
   align-self: stretch;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -95,9 +106,11 @@ textarea {
 }
 
 .field-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   gap: 10px;
+  min-height: 0;
 }
 
 .field,
@@ -115,12 +128,14 @@ textarea {
 
 .field input,
 .field textarea,
+.task-row input,
 .input-with-unit {
   width: 100%;
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.task-row input {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
@@ -128,7 +143,8 @@ textarea {
   outline: none;
 }
 
-.field input {
+.field input,
+.task-row input {
   min-height: 38px;
   padding: 0 10px;
 }
@@ -141,7 +157,8 @@ textarea {
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.task-row input:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px rgba(47, 125, 225, 0.16);
 }
@@ -176,6 +193,81 @@ textarea {
   margin: 12px 0 0;
   padding: 0;
   border: 0;
+}
+
+.wbs-editor {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.wbs-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wbs-editor-heading span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.icon-action {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.icon-action:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.icon-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.task-list {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(82px, 96px) 30px;
+  gap: 6px;
+  align-items: center;
+}
+
+.task-effort {
+  min-width: 0;
+}
+
+.task-effort input {
+  padding-right: 6px;
+  text-align: right;
+}
+
+.task-effort span {
+  padding: 0 7px;
+  font-size: 0.78rem;
 }
 
 .weekday-toggle {
@@ -261,7 +353,7 @@ textarea {
 
 .results {
   display: grid;
-  grid-template-columns: minmax(280px, 1.75fr) repeat(3, minmax(112px, 1fr));
+  grid-template-columns: repeat(2, minmax(210px, 1.4fr)) repeat(2, minmax(110px, 0.8fr));
   gap: 1px;
   overflow: hidden;
   background: var(--line);
@@ -275,12 +367,12 @@ textarea {
   background: var(--panel);
 }
 
-.metric-hero {
+.date-metric {
   min-height: 72px;
 }
 
-.metric-hero strong {
-  font-size: clamp(1.18rem, 1.65vw, 1.45rem);
+.metric.date-metric strong {
+  font-size: clamp(1rem, 1.25vw, 1.2rem);
   white-space: nowrap;
 }
 
@@ -298,7 +390,7 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-.metric:not(.metric-hero) strong {
+.metric:not(.date-metric) strong {
   font-size: clamp(1.05rem, 1.45vw, 1.3rem);
 }
 
@@ -306,10 +398,15 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  min-height: 0;
   margin-top: 0;
 }
 
 .summary-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: 14px;
 }
 
@@ -318,30 +415,52 @@ textarea {
   font-size: 1rem;
 }
 
-.breakdown {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 12px;
-  margin: 10px 0 0;
-  font-size: 0.86rem;
+.schedule-table-wrap {
+  flex: 1 1 auto;
+  min-height: 76px;
+  margin-top: 10px;
+  overflow: auto;
+  border-top: 1px solid var(--soft-line);
 }
 
-.breakdown dt {
-  color: var(--muted);
-  font-weight: 700;
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
 }
 
-.breakdown dd {
-  margin: 0;
+.schedule-table th,
+.schedule-table td {
+  padding: 6px;
+  border-bottom: 1px solid var(--soft-line);
   text-align: right;
+  white-space: nowrap;
+}
+
+.schedule-table th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  color: var(--muted);
   font-weight: 800;
+  z-index: 1;
+}
+
+.schedule-table th:first-child,
+.schedule-table td:first-child {
+  max-width: 120px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
 }
 
 .excluded-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-height: 0;
   margin-top: 10px;
+  overflow: auto;
 }
 
 .excluded-list p {
@@ -367,7 +486,10 @@ textarea {
 }
 
 .calendar-panel {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  overflow: hidden;
   margin-top: 0;
   padding: 12px;
 }
@@ -421,6 +543,8 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 8px;
+  min-height: 0;
+  overflow: auto;
 }
 
 .month {
@@ -468,7 +592,8 @@ textarea {
 .day {
   position: relative;
   display: grid;
-  min-height: 35px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 43px;
   padding: 4px;
   background: #fff;
   color: var(--ink);
@@ -491,6 +616,17 @@ textarea {
   font-weight: 800;
 }
 
+.day-task {
+  min-width: 0;
+  overflow: hidden;
+  align-self: end;
+  color: var(--task-color, var(--accent-strong));
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .day.closed {
   background: var(--closed);
   color: #7b8795;
@@ -503,7 +639,31 @@ textarea {
 }
 
 .day.worked {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: inset 0 0 0 2px var(--task-color, var(--accent));
+}
+
+.day.worked.task-color-0 {
+  --task-color: #176b5b;
+}
+
+.day.worked.task-color-1 {
+  --task-color: #1f5fbf;
+}
+
+.day.worked.task-color-2 {
+  --task-color: #8b5a12;
+}
+
+.day.worked.task-color-3 {
+  --task-color: #8b3f77;
+}
+
+.day.worked.task-color-4 {
+  --task-color: #5b6f1d;
+}
+
+.day.worked.task-color-5 {
+  --task-color: #ad4b2f;
 }
 
 .day.start::before,
@@ -568,7 +728,7 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .metric-hero {
+  .date-metric {
     grid-column: 1 / -1;
   }
 
@@ -593,7 +753,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .metric-hero {
+  .date-metric {
     grid-column: auto;
   }
 

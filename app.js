@@ -281,32 +281,47 @@
     return { type: "work", label: "稼働日" };
   }
 
-  function calculateSchedule(settings) {
-    if (!settings.startDate) {
-      throw new Error("開始日を入力してください。");
-    }
-    if (!Number.isFinite(settings.effortDays) || settings.effortDays <= 0) {
-      throw new Error("工数は0より大きい人日で入力してください。");
-    }
-    if (settings.allowedWeekdays.size === 0) {
-      throw new Error("稼働曜日を1つ以上選択してください。");
+  function createCounts() {
+    return {
+      closed: 0,
+      holiday: 0,
+      extra: 0,
+    };
+  }
+
+  function normalizeTasks(settings) {
+    const rawTasks = Array.isArray(settings.tasks)
+      ? settings.tasks
+      : [{ name: "タスク1", effortDays: settings.effortDays }];
+
+    if (rawTasks.length === 0) {
+      throw new Error("WBSタスクを1つ以上追加してください。");
     }
 
-    let remainingDays = settings.effortDays;
-    let cursor = settings.countStartDate
-      ? cloneUtcDate(settings.startDate)
-      : addDays(settings.startDate, 1);
+    return rawTasks.map((task, index) => {
+      const effortDays = Number(task.effortDays);
+      if (!Number.isFinite(effortDays) || effortDays <= 0) {
+        throw new Error(`タスク${index + 1}の工数は0より大きい人日で入力してください。`);
+      }
+
+      return {
+        index,
+        name: typeof task.name === "string" && task.name.trim() ? task.name.trim() : `タスク${index + 1}`,
+        effortDays,
+      };
+    });
+  }
+
+  function calculateTaskSchedule(settings, task, startDate, countStartDate) {
+    let remainingDays = task.effortDays;
+    let cursor = countStartDate ? cloneUtcDate(startDate) : addDays(startDate, 1);
     let loopGuard = 0;
     let firstWorkDate = null;
     let finishDate = null;
     let lastDayEffort = 0;
     const workEntries = [];
     const excludedDays = [];
-    const counts = {
-      closed: 0,
-      holiday: 0,
-      extra: 0,
-    };
+    const counts = createCounts();
 
     while (remainingDays > EPSILON) {
       loopGuard += 1;
@@ -322,6 +337,8 @@
           date: cloneUtcDate(cursor),
           key: formatYmd(cursor),
           effort: allocatedEffort,
+          taskIndex: task.index,
+          taskName: task.name,
         };
         workEntries.push(entry);
         firstWorkDate = firstWorkDate || cloneUtcDate(cursor);
@@ -335,6 +352,8 @@
           key: formatYmd(cursor),
           type: classification.type,
           label: classification.label,
+          taskIndex: task.index,
+          taskName: task.name,
         });
       }
 
@@ -342,16 +361,65 @@
     }
 
     return {
-      startDate: cloneUtcDate(settings.startDate),
+      index: task.index,
+      name: task.name,
+      startDate: cloneUtcDate(startDate),
       firstWorkDate,
       finishDate,
       workEntries,
       excludedDays,
       counts,
-      effortDays: settings.effortDays,
+      effortDays: task.effortDays,
       workingDays: workEntries.length,
-      calendarDays: daysBetweenInclusive(settings.startDate, finishDate),
       lastDayEffort,
+    };
+  }
+
+  function calculateSchedule(settings) {
+    if (!settings.startDate) {
+      throw new Error("開始日を入力してください。");
+    }
+    if (settings.allowedWeekdays.size === 0) {
+      throw new Error("稼働曜日を1つ以上選択してください。");
+    }
+
+    const tasks = normalizeTasks(settings);
+    const taskResults = [];
+    const counts = createCounts();
+    let nextStartDate = cloneUtcDate(settings.startDate);
+
+    for (const task of tasks) {
+      const taskResult = calculateTaskSchedule(
+        settings,
+        task,
+        nextStartDate,
+        taskResults.length === 0 ? settings.countStartDate : true,
+      );
+      taskResults.push(taskResult);
+      counts.closed += taskResult.counts.closed;
+      counts.holiday += taskResult.counts.holiday;
+      counts.extra += taskResult.counts.extra;
+      nextStartDate = addDays(taskResult.finishDate, 1);
+    }
+
+    const workEntries = taskResults.flatMap((task) => task.workEntries);
+    const excludedDays = taskResults.flatMap((task) => task.excludedDays);
+    const firstTask = taskResults[0];
+    const lastTask = taskResults[taskResults.length - 1];
+    const effortDays = taskResults.reduce((total, task) => total + task.effortDays, 0);
+
+    return {
+      startDate: cloneUtcDate(settings.startDate),
+      firstWorkDate: firstTask.firstWorkDate,
+      finishDate: lastTask.finishDate,
+      taskResults,
+      workEntries,
+      excludedDays,
+      counts,
+      effortDays,
+      workingDays: workEntries.length,
+      calendarDays: daysBetweenInclusive(settings.startDate, lastTask.finishDate),
+      lastDayEffort: lastTask.lastDayEffort,
     };
   }
 
@@ -367,10 +435,38 @@
     return formatter.format(date);
   }
 
+  function formatShortDate(date) {
+    if (!date) return "-";
+    const formatter = new Intl.DateTimeFormat("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+      timeZone: "UTC",
+    });
+    return formatter.format(date);
+  }
+
+  function formatMetricDate(date) {
+    if (!date) return "-";
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}/${month}/${day}(${WEEKDAY_LABELS[date.getUTCDay()]})`;
+  }
+
   function formatEffort(value) {
     return `${new Intl.NumberFormat("ja-JP", {
       maximumFractionDigits: 2,
     }).format(value)}人日`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
   }
 
   function formatDays(value) {
@@ -385,9 +481,30 @@
     return `${year}-${month}-${day}`;
   }
 
+  function readTasks() {
+    const rows = Array.from(document.querySelectorAll(".task-row"));
+    if (rows.length === 0) {
+      throw new Error("WBSタスクを1つ以上追加してください。");
+    }
+
+    return rows.map((row, index) => {
+      const nameInput = row.querySelector('input[name="taskName"]');
+      const effortInput = row.querySelector('input[name="taskEffort"]');
+      const effortDays = Number(effortInput.value);
+
+      if (!Number.isFinite(effortDays) || effortDays <= 0) {
+        throw new Error(`タスク${index + 1}の工数は0より大きい人日で入力してください。`);
+      }
+
+      return {
+        name: nameInput.value.trim() || `タスク${index + 1}`,
+        effortDays,
+      };
+    });
+  }
+
   function readSettings() {
     const startDate = parseDateInput(document.querySelector("#startDate").value);
-    const effortDays = Number(document.querySelector("#effortDays").value);
     const allowedWeekdays = new Set(
       Array.from(document.querySelectorAll('input[name="weekday"]:checked')).map((input) =>
         Number(input.value),
@@ -403,7 +520,7 @@
 
     return {
       startDate,
-      effortDays,
+      tasks: readTasks(),
       allowedWeekdays,
       countStartDate: document.querySelector("#countStartDate").checked,
       excludePublicHolidays: document.querySelector("#excludePublicHolidays").checked,
@@ -412,25 +529,33 @@
   }
 
   function renderMetrics(result) {
-    document.querySelector("#finishDate").textContent = formatJapaneseDate(result.finishDate);
+    document.querySelector("#projectStartDate").textContent = formatMetricDate(result.startDate);
+    document.querySelector("#finishDate").textContent = formatMetricDate(result.finishDate);
     document.querySelector("#workingDays").textContent = formatDays(result.workingDays);
     document.querySelector("#calendarDays").textContent = formatDays(result.calendarDays);
-    document.querySelector("#lastDayEffort").textContent = formatEffort(result.lastDayEffort);
   }
 
-  function renderBreakdown(result) {
-    const rows = [
-      ["開始日", formatJapaneseDate(result.startDate)],
-      ["初回稼働日", formatJapaneseDate(result.firstWorkDate)],
-      ["総工数", formatEffort(result.effortDays)],
-      ["非稼働曜日", formatDays(result.counts.closed)],
-      ["祝日", formatDays(result.counts.holiday)],
-      ["会社休日", formatDays(result.counts.extra)],
-    ];
-
-    document.querySelector("#breakdown").innerHTML = rows
-      .map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`)
-      .join("");
+  function renderTaskSchedule(result) {
+    const table = document.querySelector("#taskSchedule");
+    table.innerHTML = `<thead>
+      <tr><th>タスク</th><th>開始</th><th>完了</th><th>工数</th></tr>
+    </thead>
+    <tbody>
+      ${result.taskResults
+        .map(
+          (task) => `<tr>
+            <td title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</td>
+            <td title="${escapeHtml(formatJapaneseDate(task.firstWorkDate))}">${formatShortDate(
+              task.firstWorkDate,
+            )}</td>
+            <td title="${escapeHtml(formatJapaneseDate(task.finishDate))}">${formatShortDate(
+              task.finishDate,
+            )}</td>
+            <td>${formatEffort(task.effortDays)}</td>
+          </tr>`,
+        )
+        .join("")}
+    </tbody>`;
   }
 
   function renderExcludedDays(result) {
@@ -490,7 +615,7 @@
       return;
     }
 
-    const workMap = new Map(result.workEntries.map((entry) => [entry.key, entry.effort]));
+    const workMap = new Map(result.workEntries.map((entry) => [entry.key, entry]));
     const startKey = formatYmd(result.startDate);
     const finishKey = formatYmd(result.finishDate);
     const todayKey = todayInputValue();
@@ -510,7 +635,8 @@
           const key = formatYmd(date);
           const classification = classifyDay(date, settings);
           const classes = ["day"];
-          const effort = workMap.get(key);
+          const workEntry = workMap.get(key);
+          const effort = workEntry ? workEntry.effort : 0;
           const titleParts = [formatJapaneseDate(date)];
 
           if (classification.type !== "work") {
@@ -519,15 +645,22 @@
           }
           if (effort) {
             classes.push("worked");
-            titleParts.push(formatEffort(effort));
+            classes.push(`task-color-${workEntry.taskIndex % 6}`);
+            titleParts.push(`${workEntry.taskName}: ${formatEffort(effort)}`);
           }
           if (key === startKey) classes.push("start");
           if (key === finishKey) classes.push("finish");
           if (key === todayKey) classes.push("today");
 
-          return `<div class="${classes.join(" ")}" title="${titleParts.join(" / ")}">
+          return `<div class="${classes.join(" ")}" title="${escapeHtml(titleParts.join(" / "))}">
             <span class="day-number">${day}</span>
-            ${effort ? `<span class="day-effort">${formatEffort(effort)}</span>` : ""}
+            ${
+              effort
+                ? `<span class="day-task">${escapeHtml(workEntry.taskName)}</span><span class="day-effort">${formatEffort(
+                    effort,
+                  )}</span>`
+                : ""
+            }
           </div>`;
         }).join("");
 
@@ -541,7 +674,7 @@
 
   function render(result, settings) {
     renderMetrics(result);
-    renderBreakdown(result);
+    renderTaskSchedule(result);
     renderExcludedDays(result);
     renderCalendar(result, settings);
   }
@@ -560,9 +693,50 @@
     }
   }
 
+  function updateTaskRemoveButtons() {
+    const rows = Array.from(document.querySelectorAll(".task-row"));
+    rows.forEach((row, index) => {
+      const nameInput = row.querySelector('input[name="taskName"]');
+      const effortInput = row.querySelector('input[name="taskEffort"]');
+      const removeButton = row.querySelector(".remove-task");
+      nameInput.setAttribute("aria-label", `タスク${index + 1} 名称`);
+      effortInput.setAttribute("aria-label", `タスク${index + 1} 工数`);
+      removeButton.setAttribute("aria-label", `タスク${index + 1}を削除`);
+      removeButton.disabled = rows.length === 1;
+    });
+  }
+
+  function createTaskRow(index) {
+    const row = document.createElement("div");
+    row.className = "task-row";
+    row.innerHTML = `<input name="taskName" type="text" value="タスク${index}" />
+      <div class="input-with-unit task-effort">
+        <input name="taskEffort" type="number" min="0.25" step="0.25" value="1" required />
+        <span>人日</span>
+      </div>
+      <button class="icon-action remove-task" type="button" title="タスクを削除">x</button>`;
+    return row;
+  }
+
+  function addTaskRow() {
+    const taskList = document.querySelector("#taskList");
+    taskList.append(createTaskRow(taskList.querySelectorAll(".task-row").length + 1));
+    updateTaskRemoveButtons();
+  }
+
+  function handleTaskListClick(event) {
+    const removeButton = event.target.closest(".remove-task");
+    if (!removeButton || removeButton.disabled) return;
+    removeButton.closest(".task-row").remove();
+    updateTaskRemoveButtons();
+  }
+
   function init() {
     const form = document.querySelector("#calculatorForm");
     document.querySelector("#startDate").value = todayInputValue();
+    document.querySelector("#addTask").addEventListener("click", addTaskRow);
+    document.querySelector("#taskList").addEventListener("click", handleTaskListClick);
+    updateTaskRemoveButtons();
     form.addEventListener("submit", handleSubmit);
     form.dispatchEvent(new Event("submit", { cancelable: true }));
   }

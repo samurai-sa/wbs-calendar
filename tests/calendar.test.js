@@ -73,4 +73,46 @@ function schedule(overrides) {
   assert.equal(result.counts.extra, 1);
 }
 
+{
+  const result = schedule({
+    tasks: [
+      { name: "A", effortDays: 2 },
+      { name: "B", effortDays: 1 },
+    ],
+  });
+  assert.equal(formatYmd(result.taskResults[0].firstWorkDate), "2026-05-20");
+  assert.equal(formatYmd(result.taskResults[0].finishDate), "2026-05-21");
+  assert.equal(formatYmd(result.taskResults[1].firstWorkDate), "2026-05-22");
+  assert.equal(formatYmd(result.taskResults[1].finishDate), "2026-05-22");
+  assert.equal(formatYmd(result.finishDate), "2026-05-22");
+  assert.equal(result.effortDays, 3);
+  assert.equal(result.workingDays, 3);
+}
+
+{
+  const result = schedule({
+    startDate: parseDateInput("2026-05-22"),
+    tasks: [
+      { name: "A", effortDays: 1 },
+      { name: "B", effortDays: 1 },
+    ],
+  });
+  assert.equal(formatYmd(result.taskResults[0].finishDate), "2026-05-22");
+  assert.equal(formatYmd(result.taskResults[1].firstWorkDate), "2026-05-25");
+  assert.equal(formatYmd(result.finishDate), "2026-05-25");
+  assert.equal(result.counts.closed, 2);
+}
+
+{
+  const result = schedule({
+    tasks: [
+      { name: "A", effortDays: 0.5 },
+      { name: "B", effortDays: 1 },
+    ],
+  });
+  assert.equal(formatYmd(result.taskResults[0].finishDate), "2026-05-20");
+  assert.equal(formatYmd(result.taskResults[1].firstWorkDate), "2026-05-21");
+  assert.equal(result.lastDayEffort, 1);
+}
+
 console.log("calendar tests passed");

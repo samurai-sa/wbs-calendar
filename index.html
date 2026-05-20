@@ -21,21 +21,91 @@
               <input id="startDate" name="startDate" type="date" required />
             </label>
 
-            <label class="field">
-              <span>工数</span>
-              <div class="input-with-unit">
-                <input
-                  id="effortDays"
-                  name="effortDays"
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value="10"
-                  required
-                />
-                <span>人日</span>
+            <section class="wbs-editor" aria-labelledby="wbsHeading">
+              <div class="wbs-editor-heading">
+                <span id="wbsHeading">WBS</span>
+                <button
+                  class="icon-action"
+                  id="addTask"
+                  type="button"
+                  aria-label="タスクを追加"
+                  title="タスクを追加"
+                >
+                  +
+                </button>
               </div>
-            </label>
+              <div class="task-list" id="taskList">
+                <div class="task-row">
+                  <input name="taskName" type="text" value="タスク1" aria-label="タスク1 名称" />
+                  <div class="input-with-unit task-effort">
+                    <input
+                      name="taskEffort"
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value="2"
+                      aria-label="タスク1 工数"
+                      required
+                    />
+                    <span>人日</span>
+                  </div>
+                  <button
+                    class="icon-action remove-task"
+                    type="button"
+                    aria-label="タスク1を削除"
+                    title="タスクを削除"
+                  >
+                    x
+                  </button>
+                </div>
+                <div class="task-row">
+                  <input name="taskName" type="text" value="タスク2" aria-label="タスク2 名称" />
+                  <div class="input-with-unit task-effort">
+                    <input
+                      name="taskEffort"
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value="3"
+                      aria-label="タスク2 工数"
+                      required
+                    />
+                    <span>人日</span>
+                  </div>
+                  <button
+                    class="icon-action remove-task"
+                    type="button"
+                    aria-label="タスク2を削除"
+                    title="タスクを削除"
+                  >
+                    x
+                  </button>
+                </div>
+                <div class="task-row">
+                  <input name="taskName" type="text" value="タスク3" aria-label="タスク3 名称" />
+                  <div class="input-with-unit task-effort">
+                    <input
+                      name="taskEffort"
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value="5"
+                      aria-label="タスク3 工数"
+                      required
+                    />
+                    <span>人日</span>
+                  </div>
+                  <button
+                    class="icon-action remove-task"
+                    type="button"
+                    aria-label="タスク3を削除"
+                    title="タスクを削除"
+                  >
+                    x
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
 
           <fieldset class="field-group">
@@ -77,7 +147,11 @@
         </form>
 
         <section class="results" aria-live="polite" aria-atomic="true">
-          <div class="metric metric-hero">
+          <div class="metric date-metric">
+            <span>開始日</span>
+            <strong id="projectStartDate">-</strong>
+          </div>
+          <div class="metric date-metric">
             <span>完了予定日</span>
             <strong id="finishDate">-</strong>
           </div>
@@ -89,17 +163,15 @@
             <span>カレンダー日数</span>
             <strong id="calendarDays">-</strong>
           </div>
-          <div class="metric">
-            <span>最終日の工数</span>
-            <strong id="lastDayEffort">-</strong>
-          </div>
         </section>
       </section>
 
       <section class="detail-layout">
-        <section class="summary-panel">
-          <h2>内訳</h2>
-          <dl class="breakdown" id="breakdown"></dl>
+        <section class="summary-panel wbs-panel">
+          <h2>WBS</h2>
+          <div class="schedule-table-wrap">
+            <table class="schedule-table" id="taskSchedule"></table>
+          </div>
         </section>
 
         <section class="summary-panel">
