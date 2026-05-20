@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工数カレンダー</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <form class="calculator" id="calculatorForm" novalidate>
+          <header class="app-header">
+            <p>Japan Work Calendar</p>
+            <h1>工数から工期を計算</h1>
+          </header>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>開始日</span>
+              <input id="startDate" name="startDate" type="date" required />
+            </label>
+
+            <label class="field">
+              <span>工数</span>
+              <div class="input-with-unit">
+                <input
+                  id="effortDays"
+                  name="effortDays"
+                  type="number"
+                  min="0.25"
+                  step="0.25"
+                  value="10"
+                  required
+                />
+                <span>人日</span>
+              </div>
+            </label>
+          </div>
+
+          <fieldset class="field-group">
+            <legend>稼働曜日</legend>
+            <div class="weekday-toggle" role="group" aria-label="稼働曜日">
+              <label><input type="checkbox" name="weekday" value="1" checked /><span>月</span></label>
+              <label><input type="checkbox" name="weekday" value="2" checked /><span>火</span></label>
+              <label><input type="checkbox" name="weekday" value="3" checked /><span>水</span></label>
+              <label><input type="checkbox" name="weekday" value="4" checked /><span>木</span></label>
+              <label><input type="checkbox" name="weekday" value="5" checked /><span>金</span></label>
+              <label><input type="checkbox" name="weekday" value="6" /><span>土</span></label>
+              <label><input type="checkbox" name="weekday" value="0" /><span>日</span></label>
+            </div>
+          </fieldset>
+
+          <div class="option-grid">
+            <label class="check-row">
+              <input id="countStartDate" type="checkbox" checked />
+              <span>開始日を稼働日に含める</span>
+            </label>
+            <label class="check-row">
+              <input id="excludePublicHolidays" type="checkbox" checked />
+              <span>日本の祝日を除外</span>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>会社休日</span>
+            <textarea
+              id="extraHolidays"
+              rows="2"
+              placeholder="2026-08-13&#10;2026-12-29"
+            ></textarea>
+          </label>
+
+          <p class="form-error" id="formError" role="alert"></p>
+
+          <button class="primary-action" type="submit">計算する</button>
+        </form>
+
+        <section class="results" aria-live="polite" aria-atomic="true">
+          <div class="metric metric-hero">
+            <span>完了予定日</span>
+            <strong id="finishDate">-</strong>
+          </div>
+          <div class="metric">
+            <span>営業日</span>
+            <strong id="workingDays">-</strong>
+          </div>
+          <div class="metric">
+            <span>カレンダー日数</span>
+            <strong id="calendarDays">-</strong>
+          </div>
+          <div class="metric">
+            <span>最終日の工数</span>
+            <strong id="lastDayEffort">-</strong>
+          </div>
+        </section>
+      </section>
+
+      <section class="detail-layout">
+        <section class="summary-panel">
+          <h2>内訳</h2>
+          <dl class="breakdown" id="breakdown"></dl>
+        </section>
+
+        <section class="summary-panel">
+          <h2>除外日</h2>
+          <div class="excluded-list" id="excludedList"></div>
+        </section>
+      </section>
+
+      <section class="calendar-panel">
+        <header class="section-heading">
+          <h2>カレンダー</h2>
+          <div class="legend" aria-label="凡例">
+            <span><i class="legend-work"></i>稼働</span>
+            <span><i class="legend-holiday"></i>祝日</span>
+            <span><i class="legend-closed"></i>非稼働</span>
+            <span><i class="legend-end"></i>完了</span>
+          </div>
+        </header>
+        <div class="calendar-months" id="calendarMonths"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

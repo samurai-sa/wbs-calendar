@@ -1,0 +1,9 @@
+{
+  "name": "wbs-calendar",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node tests/calendar.test.js",
+    "serve": "python3 -m http.server 5173"
+  }
+}
