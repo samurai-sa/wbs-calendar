@@ -469,6 +469,94 @@
       .replaceAll("'", "&#39;");
   }
 
+  function parseCsvLine(line) {
+    const parts = [];
+    let current = "";
+    let quoted = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+
+      if (char === '"' && quoted && next === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        parts.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    parts.push(current);
+    return parts;
+  }
+
+  function normalizeEffortToken(value) {
+    return String(value)
+      .trim()
+      .replace(/[０-９．]/g, (char) => {
+        if (char === "．") return ".";
+        return String.fromCharCode(char.charCodeAt(0) - 0xfee0);
+      })
+      .replace(/[,，]/g, "")
+      .replace(/\s*人日?$/u, "");
+  }
+
+  function parsePastedTasks(value) {
+    const tasks = [];
+    const lines = String(value)
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    lines.forEach((line, index) => {
+      let name = "";
+      let effortToken = "";
+
+      if (line.includes("\t")) {
+        const parts = line
+          .split(/\t+/)
+          .map((part) => part.trim())
+          .filter(Boolean);
+        effortToken = parts[parts.length - 1] || "";
+        name = parts.slice(0, -1).join(" ");
+      } else {
+        const csvParts = parseCsvLine(line)
+          .map((part) => part.trim())
+          .filter(Boolean);
+
+        if (csvParts.length > 1) {
+          effortToken = csvParts[csvParts.length - 1] || "";
+          name = csvParts.slice(0, -1).join(", ");
+        } else {
+          const match = line.match(/^(.+?)[\s　]+([+-]?[0-9０-９]+(?:[.．][0-9０-９]+)?(?:\s*人日?)?)$/u);
+          if (match) {
+            name = match[1].trim();
+            effortToken = match[2].trim();
+          }
+        }
+      }
+
+      const effortDays = Number(normalizeEffortToken(effortToken));
+
+      if (!name || !Number.isFinite(effortDays) || effortDays <= 0) {
+        throw new Error(`${index + 1}行目を確認してください。`);
+      }
+
+      tasks.push({ name, effortDays });
+    });
+
+    if (tasks.length === 0) {
+      throw new Error("貼付データを入力してください。");
+    }
+
+    return tasks;
+  }
+
   function formatDays(value) {
     return `${new Intl.NumberFormat("ja-JP").format(value)}日`;
   }
@@ -706,16 +794,29 @@
     });
   }
 
-  function createTaskRow(index) {
+  function createTaskRow(index, task = {}) {
     const row = document.createElement("div");
     row.className = "task-row";
-    row.innerHTML = `<input name="taskName" type="text" value="タスク${index}" />
+    row.innerHTML = `<input name="taskName" type="text" value="${escapeHtml(
+      task.name || `タスク${index}`,
+    )}" />
       <div class="input-with-unit task-effort">
-        <input name="taskEffort" type="number" min="0.25" step="0.25" value="1" required />
+        <input name="taskEffort" type="number" min="0.25" step="0.25" value="${
+          task.effortDays || 1
+        }" required />
         <span>人日</span>
       </div>
       <button class="icon-action remove-task" type="button" title="タスクを削除">x</button>`;
     return row;
+  }
+
+  function renderTaskRows(tasks) {
+    const taskList = document.querySelector("#taskList");
+    taskList.innerHTML = "";
+    tasks.forEach((task, index) => {
+      taskList.append(createTaskRow(index + 1, task));
+    });
+    updateTaskRemoveButtons();
   }
 
   function addTaskRow() {
@@ -731,9 +832,63 @@
     updateTaskRemoveButtons();
   }
 
+  function tasksToClipboardText() {
+    return Array.from(document.querySelectorAll(".task-row"))
+      .map((row, index) => {
+        const name = row.querySelector('input[name="taskName"]').value.trim() || `タスク${index + 1}`;
+        const effort = row.querySelector('input[name="taskEffort"]').value.trim() || "1";
+        return `${name}\t${effort}`;
+      })
+      .join("\n");
+  }
+
+  function openImportDialog() {
+    const dialog = document.querySelector("#importDialog");
+    document.querySelector("#bulkTasks").value = tasksToClipboardText();
+    document.querySelector("#importError").textContent = "";
+
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+
+    document.querySelector("#bulkTasks").focus();
+  }
+
+  function closeImportDialog() {
+    const dialog = document.querySelector("#importDialog");
+    if (typeof dialog.close === "function") {
+      dialog.close();
+    } else {
+      dialog.removeAttribute("open");
+    }
+  }
+
+  function handleImportSubmit(event) {
+    event.preventDefault();
+    const error = document.querySelector("#importError");
+    error.textContent = "";
+
+    try {
+      const tasks = parsePastedTasks(document.querySelector("#bulkTasks").value);
+      renderTaskRows(tasks);
+      closeImportDialog();
+      document
+        .querySelector("#calculatorForm")
+        .dispatchEvent(new Event("submit", { cancelable: true }));
+    } catch (caught) {
+      error.textContent = caught.message;
+    }
+  }
+
   function init() {
     const form = document.querySelector("#calculatorForm");
     document.querySelector("#startDate").value = todayInputValue();
+    document.querySelector("#openImport").addEventListener("click", openImportDialog);
+    document.querySelector("#closeImport").addEventListener("click", closeImportDialog);
+    document.querySelector("#cancelImport").addEventListener("click", closeImportDialog);
+    document.querySelector("#importForm").addEventListener("submit", handleImportSubmit);
     document.querySelector("#addTask").addEventListener("click", addTaskRow);
     document.querySelector("#taskList").addEventListener("click", handleTaskListClick);
     updateTaskRemoveButtons();
@@ -752,12 +907,14 @@
       createUtcDate,
       formatYmd,
       getJapaneseHolidays,
+      parsePastedTasks,
       parseDateInput,
     };
   } else {
     root.WbsCalendar = {
       calculateSchedule,
       getJapaneseHolidays,
+      parsePastedTasks,
       parseDateInput,
     };
   }

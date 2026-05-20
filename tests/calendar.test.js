@@ -3,6 +3,7 @@ const {
   calculateSchedule,
   formatYmd,
   getJapaneseHolidays,
+  parsePastedTasks,
   parseDateInput,
 } = require("../app.js");
 
@@ -71,6 +72,30 @@ function schedule(overrides) {
   });
   assert.equal(formatYmd(result.finishDate), "2026-05-21");
   assert.equal(result.counts.extra, 1);
+}
+
+{
+  const tasks = parsePastedTasks(`イベントモニタリングログのアクセス管理システムへの連携\t22
+不動産住所情報の住所マスター化\t2
+宴席実施履歴の過去断面を保持したい\t1.5`);
+  assert.equal(tasks.length, 3);
+  assert.equal(tasks[0].name, "イベントモニタリングログのアクセス管理システムへの連携");
+  assert.equal(tasks[0].effortDays, 22);
+  assert.equal(tasks[2].effortDays, 1.5);
+}
+
+{
+  const tasks = parsePastedTasks(`"カンマ,ありのタスク",3
+スペース区切りのタスク 1.5
+全角数字のタスク　２`);
+  assert.equal(tasks.length, 3);
+  assert.equal(tasks[0].name, "カンマ,ありのタスク");
+  assert.equal(tasks[1].effortDays, 1.5);
+  assert.equal(tasks[2].effortDays, 2);
+}
+
+{
+  assert.throws(() => parsePastedTasks("工数なし"), /1行目/);
 }
 
 {

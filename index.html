@@ -24,15 +24,26 @@
             <section class="wbs-editor" aria-labelledby="wbsHeading">
               <div class="wbs-editor-heading">
                 <span id="wbsHeading">WBS</span>
-                <button
-                  class="icon-action"
-                  id="addTask"
-                  type="button"
-                  aria-label="タスクを追加"
-                  title="タスクを追加"
-                >
-                  +
-                </button>
+                <div class="wbs-actions">
+                  <button
+                    class="text-action"
+                    id="openImport"
+                    type="button"
+                    aria-label="WBSを一括貼付"
+                    title="WBSを一括貼付"
+                  >
+                    貼付
+                  </button>
+                  <button
+                    class="icon-action"
+                    id="addTask"
+                    type="button"
+                    aria-label="タスクを追加"
+                    title="タスクを追加"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div class="task-list" id="taskList">
                 <div class="task-row">
@@ -193,6 +204,28 @@
         <div class="calendar-months" id="calendarMonths"></div>
       </section>
     </main>
+
+    <dialog class="import-dialog" id="importDialog">
+      <form class="import-card" id="importForm" novalidate>
+        <header class="dialog-heading">
+          <h2>WBS一括貼付</h2>
+          <button class="icon-action" id="closeImport" type="button" aria-label="閉じる">x</button>
+        </header>
+        <label class="field">
+          <span>貼付データ</span>
+          <textarea
+            id="bulkTasks"
+            rows="10"
+            placeholder="タスク名	2&#10;別タスク	1.5"
+          ></textarea>
+        </label>
+        <p class="form-error" id="importError" role="alert"></p>
+        <div class="dialog-actions">
+          <button class="secondary-action" id="cancelImport" type="button">キャンセル</button>
+          <button class="dialog-primary" type="submit">読み込む</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="./app.js"></script>
   </body>
