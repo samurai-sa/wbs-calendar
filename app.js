@@ -4,6 +4,7 @@
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
   const EPSILON = 0.000001;
+  let latestResult = null;
 
   function createUtcDate(year, month, day) {
     return new Date(Date.UTC(year, month - 1, day));
@@ -451,13 +452,29 @@
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, "0");
     const day = String(date.getUTCDate()).padStart(2, "0");
-    return `${year}/${month}/${day}(${WEEKDAY_LABELS[date.getUTCDay()]})`;
+    return `${year}/${month}/${day}`;
   }
 
   function formatEffort(value) {
     return `${new Intl.NumberFormat("ja-JP", {
       maximumFractionDigits: 2,
     }).format(value)}人日`;
+  }
+
+  function formatCsvCell(value) {
+    const text = String(value);
+    if (!/[",\n\r]/.test(text)) return text;
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  function formatScheduleCopy(result) {
+    const rows = result.taskResults.map((task) => [
+      task.name,
+      formatMetricDate(task.firstWorkDate),
+      formatMetricDate(task.finishDate),
+    ]);
+
+    return rows.map((row) => row.map(formatCsvCell).join(",")).join("\n");
   }
 
   function escapeHtml(value) {
@@ -761,6 +778,7 @@
   }
 
   function render(result, settings) {
+    latestResult = result;
     renderMetrics(result);
     renderTaskSchedule(result);
     renderExcludedDays(result);
@@ -882,6 +900,44 @@
     }
   }
 
+  async function writeClipboardText(value) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+
+  async function handleCopySchedule() {
+    const button = document.querySelector("#copySchedule");
+    const originalText = button.textContent;
+
+    try {
+      if (!latestResult) {
+        throw new Error("コピーできるWBSがありません。");
+      }
+      await writeClipboardText(formatScheduleCopy(latestResult));
+      button.textContent = "コピー済";
+      window.setTimeout(() => {
+        button.textContent = originalText;
+      }, 1400);
+    } catch (caught) {
+      button.textContent = "失敗";
+      window.setTimeout(() => {
+        button.textContent = originalText;
+      }, 1400);
+    }
+  }
+
   function init() {
     const form = document.querySelector("#calculatorForm");
     document.querySelector("#startDate").value = todayInputValue();
@@ -889,6 +945,7 @@
     document.querySelector("#closeImport").addEventListener("click", closeImportDialog);
     document.querySelector("#cancelImport").addEventListener("click", closeImportDialog);
     document.querySelector("#importForm").addEventListener("submit", handleImportSubmit);
+    document.querySelector("#copySchedule").addEventListener("click", handleCopySchedule);
     document.querySelector("#addTask").addEventListener("click", addTaskRow);
     document.querySelector("#taskList").addEventListener("click", handleTaskListClick);
     updateTaskRemoveButtons();
@@ -907,12 +964,14 @@
       createUtcDate,
       formatYmd,
       getJapaneseHolidays,
+      formatScheduleCopy,
       parsePastedTasks,
       parseDateInput,
     };
   } else {
     root.WbsCalendar = {
       calculateSchedule,
+      formatScheduleCopy,
       getJapaneseHolidays,
       parsePastedTasks,
       parseDateInput,

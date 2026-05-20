@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const {
   calculateSchedule,
+  formatScheduleCopy,
   formatYmd,
   getJapaneseHolidays,
   parsePastedTasks,
@@ -112,6 +113,20 @@ function schedule(overrides) {
   assert.equal(formatYmd(result.finishDate), "2026-05-22");
   assert.equal(result.effortDays, 3);
   assert.equal(result.workingDays, 3);
+  assert.equal(
+    formatScheduleCopy(result),
+    "A,2026/05/20,2026/05/21\nB,2026/05/22,2026/05/22",
+  );
+}
+
+{
+  const result = schedule({
+    tasks: [{ name: "カンマ,あり", effortDays: 1 }],
+  });
+  assert.equal(
+    formatScheduleCopy(result),
+    '"カンマ,あり",2026/05/20,2026/05/20',
+  );
 }
 
 {

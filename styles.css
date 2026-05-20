@@ -51,7 +51,7 @@ dialog {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
-  grid-template-rows: auto minmax(150px, 190px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(210px, 260px) minmax(0, 1fr);
   gap: 12px;
   height: 100dvh;
   width: min(1120px, calc(100% - 24px));
@@ -492,7 +492,7 @@ dialog {
 
 .detail-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.75fr) minmax(220px, 0.75fr);
   gap: 12px;
   min-height: 0;
   margin-top: 0;
@@ -511,6 +511,12 @@ dialog {
   font-size: 1rem;
 }
 
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .schedule-table-wrap {
   flex: 1 1 auto;
   min-height: 76px;
@@ -522,12 +528,12 @@ dialog {
 .schedule-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
 }
 
 .schedule-table th,
 .schedule-table td {
-  padding: 6px;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--soft-line);
   text-align: right;
   white-space: nowrap;
@@ -544,7 +550,7 @@ dialog {
 
 .schedule-table th:first-child,
 .schedule-table td:first-child {
-  max-width: 120px;
+  max-width: 260px;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
